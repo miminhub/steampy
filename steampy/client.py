@@ -193,10 +193,14 @@ class SteamClient:
                   'partner': partner,
                   'captcha': ''}
         headers = {'Referer': self._get_trade_offer_url(trade_offer_id)}
-        response = self._session.post(accept_url, data=params, headers=headers).json()
-        if response.get('needs_mobile_confirmation', False):
-            return self._confirm_transaction(trade_offer_id)
-        return response
+        response = self._session.post(accept_url, data=params, headers=headers)
+        status = int(response.status_code)
+        if status >= 300 or status < 200:
+            return False, {'error_text': response.text, 'status_code': status} 
+        response_dict = response.json()
+        if response_dict.get('needs_mobile_confirmation'):
+            response_dict.update(self._confirm_transaction(response_dict['tradeofferid']))
+        return True, response
 
     def _fetch_trade_partner_id(self, trade_offer_id: str) -> str:
         url = self._get_trade_offer_url(trade_offer_id)
@@ -217,8 +221,11 @@ class SteamClient:
 
     def cancel_trade_offer(self, trade_offer_id: str) -> dict:
         url = 'https://steamcommunity.com/tradeoffer/' + trade_offer_id + '/cancel'
-        response = self._session.post(url, data={'sessionid': self._get_session_id()}).json()
-        return response
+        response = self._session.post(url, data={'sessionid': self._get_session_id()})
+        status = int(response.status_code)
+        if status >= 300 or status < 200 :
+            return False, {'error_text': response.text, 'status_code': status} 
+        return True, response.json()
     
     @login_required
     def make_offer(self, items_from_me: List[Asset], items_from_them: List[Asset], partner_steam_id: str,
@@ -239,10 +246,14 @@ class SteamClient:
         partner_account_id = steam_id_to_account_id(partner_steam_id)
         headers = {'Referer': SteamUrl.COMMUNITY_URL + '/tradeoffer/new/?partner=' + partner_account_id,
                    'Origin': SteamUrl.COMMUNITY_URL}
-        response = self._session.post(url, data=params, headers=headers).json()
-        if response.get('needs_mobile_confirmation'):
-            response.update(self._confirm_transaction(response['tradeofferid']))
-        return response
+        response = self._session.post(url, data=params, headers=headers)
+        status = int(response.status_code)
+        if status >= 300 or status < 200:
+            return False, {'error_text': response.text, 'status_code': status} 
+        response_dict = response.json()
+        if response_dict.get('needs_mobile_confirmation'):
+            response_dict.update(self._confirm_transaction(response_dict['tradeofferid']))
+        return True, response
 
     def get_profile(self, steam_id: str) -> dict:
         params = {'steamids': steam_id, 'key': self._api_key}
@@ -308,10 +319,14 @@ class SteamClient:
         }
         headers = {'Referer': SteamUrl.COMMUNITY_URL + urlparse.urlparse(trade_offer_url).path,
                    'Origin': SteamUrl.COMMUNITY_URL}
-        response = self._session.post(url, data=params, headers=headers).json()
-        if response.get('needs_mobile_confirmation'):
-            response.update(self._confirm_transaction(response['tradeofferid']))
-        return response
+        response = self._session.post(url, data=params, headers=headers)
+        status = int(response.status_code)
+        if status >= 300 or status < 200:
+            return False, {'error_text': response.text, 'status_code': status} 
+        response_dict = response.json()
+        if response_dict.get('needs_mobile_confirmation'):
+            response_dict.update(self._confirm_transaction(response_dict['tradeofferid']))
+        return True, response
 
     @staticmethod
     def _get_trade_offer_url(trade_offer_id: str) -> str:
